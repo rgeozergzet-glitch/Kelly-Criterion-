@@ -1,0 +1,271 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Kelly Criterion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(229, 231, 235, 1);
+        }
+        input[type=range] {
+            height: 6px;
+            -webkit-appearance: none;
+            width: 100%;
+            background: #e2e8f0;
+            border-radius: 5px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">Kalkulator Kelly Criterion</h1>
+            <p class="text-slate-600">Masukkan parameter investasi Anda untuk menghitung ukuran posisi optimal.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Inputs -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="glass-card p-6 rounded-2xl shadow-sm">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center border-b pb-2 text-slate-700">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        Parameter Input
+                    </h2>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Expected Return (%)</label>
+                            <input type="number" id="return" placeholder="Contoh: 15" step="0.1" class="w-full p-3 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Volatility / Std Dev (%)</label>
+                            <input type="number" id="volatility" placeholder="Contoh: 20" step="0.1" class="w-full p-3 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Risk-Free Rate (%)</label>
+                            <input type="number" id="riskFree" placeholder="Contoh: 5" step="0.1" class="w-full p-3 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100">
+                            <div class="flex justify-between mb-2">
+                                <label class="block text-xs font-bold text-slate-500 uppercase italic">Kelly Fraction: <span id="fractionLabel" class="text-blue-600 not-italic">1.00</span></label>
+                            </div>
+                            <input type="range" id="fractionRange" min="0.1" max="1" step="0.05" value="1.0">
+                            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                                <span>KONSERVATIF</span>
+                                <span>FULL KELLY</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Recommendation Display -->
+                <div id="resultCard" class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg transition-colors duration-500">
+                    <h3 class="text-sm font-bold opacity-70 uppercase mb-4 tracking-wider">Hasil Kalkulasi</h3>
+                    <div id="fractionTypeDisplay" class="text-xl font-bold mb-1">Full Kelly (100%)</div>
+                    <div id="kellyValueDisplay" class="text-5xl font-black mb-4">-- %</div>
+                    <p id="adviceText" class="text-sm opacity-90 leading-relaxed italic">Silakan masukkan angka di atas untuk menghitung.</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Graphs and Stats -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="glass-card p-5 rounded-2xl border-b-4 border-blue-500">
+                        <div class="text-xs font-bold text-slate-400 uppercase mb-1">Full Kelly (100%)</div>
+                        <div id="fullKellyVal" class="text-2xl font-bold text-slate-800">--</div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl border-b-4 border-emerald-500">
+                        <div class="text-xs font-bold text-emerald-600 uppercase mb-1">Half Kelly (50%)</div>
+                        <div id="halfKellyVal" class="text-2xl font-bold text-slate-800">--</div>
+                    </div>
+                </div>
+
+                <!-- Chart container -->
+                <div class="glass-card p-6 rounded-2xl shadow-sm h-[420px] flex flex-col">
+                    <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                        Kurva Pertumbuhan vs Leverage
+                    </h3>
+                    <div class="flex-grow relative">
+                        <canvas id="kellyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Explanatory note -->
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                    <h4 class="text-sm font-bold text-blue-800 mb-1">Tip Manajemen Risiko:</h4>
+                    <p class="text-xs text-blue-700 leading-relaxed">
+                        Full Kelly secara teoretis memaksimalkan kekayaan jangka panjang, namun sangat rentan terhadap volatilitas ekstrem dan potensi <i>ruin</i> jika parameter salah diestimasi. Banyak investor menggunakan <b>Half Kelly</b> untuk mengurangi risiko penarikan modal (drawdown) yang dalam.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        function updateUI() {
+            const inputReturn = document.getElementById('return').value;
+            const inputVol = document.getElementById('volatility').value;
+            const inputRF = document.getElementById('riskFree').value;
+            
+            const mu = parseFloat(inputReturn) / 100;
+            const sigma = parseFloat(inputVol) / 100;
+            const r = parseFloat(inputRF) / 100;
+            const fraction = parseFloat(document.getElementById('fractionRange').value);
+
+            document.getElementById('fractionLabel').innerText = fraction.toFixed(2);
+            
+            // Tipe label
+            let typeText = `${(fraction * 100).toFixed(0)}% Kelly`;
+            if (fraction === 0.5) typeText = "Half Kelly (50%)";
+            if (fraction === 1.0) typeText = "Full Kelly (100%)";
+            document.getElementById('fractionTypeDisplay').innerText = typeText;
+
+            // Jika input belum lengkap, tampilkan placeholder
+            if (!inputReturn || !inputVol || !inputRF || sigma <= 0) {
+                resetDisplay();
+                return;
+            }
+
+            // Rumus Kelly: f* = (mu - r) / sigma^2
+            const excessReturn = mu - r;
+            const variance = Math.pow(sigma, 2);
+            const fullKelly = excessReturn / variance;
+            const customKelly = fullKelly * fraction;
+
+            // Update statistik
+            document.getElementById('fullKellyVal').innerText = (fullKelly * 100).toFixed(2) + "%";
+            document.getElementById('halfKellyVal').innerText = (fullKelly * 0.5 * 100).toFixed(2) + "%";
+            
+            const resultValDisplay = document.getElementById('kellyValueDisplay');
+            resultValDisplay.innerText = (customKelly * 100).toFixed(2) + "%";
+
+            const resultCard = document.getElementById('resultCard');
+            const advice = document.getElementById('adviceText');
+
+            if (fullKelly <= 0) {
+                resultCard.className = "bg-red-600 text-white p-6 rounded-2xl shadow-lg transition-colors duration-500";
+                resultValDisplay.innerText = "0.00%";
+                advice.innerText = "❌ Investasi tidak layak: Return yang diharapkan lebih rendah dari suku bunga bebas risiko.";
+            } else {
+                resultCard.className = "bg-blue-600 text-white p-6 rounded-2xl shadow-lg transition-colors duration-500";
+                advice.innerText = `Anda sebaiknya mengalokasikan ${(customKelly * 100).toFixed(2)}% modal pada aset ini untuk pertumbuhan optimal.`;
+            }
+
+            drawChart(mu, r, sigma, fullKelly);
+        }
+
+        function resetDisplay() {
+            document.getElementById('fullKellyVal').innerText = "--";
+            document.getElementById('halfKellyVal').innerText = "--";
+            document.getElementById('kellyValueDisplay').innerText = "-- %";
+            document.getElementById('adviceText').innerText = "Silakan masukkan angka di atas untuk menghitung.";
+            document.getElementById('resultCard').className = "bg-slate-800 text-white p-6 rounded-2xl shadow-lg transition-colors duration-500";
+            if(myChart) {
+                myChart.destroy();
+                myChart = null;
+            }
+        }
+
+        function drawChart(mu, r, sigma, fullKelly) {
+            const ctx = document.getElementById('kellyChart').getContext('2d');
+            const labels = [];
+            const growthData = [];
+            
+            // Gambarkan sampai 1.5x Full Kelly agar puncaknya terlihat jelas
+            const maxRange = Math.max(1.5, fullKelly * 1.5);
+            const steps = 60;
+            const stepSize = maxRange / steps;
+
+            for (let f = 0; f <= maxRange; f += stepSize) {
+                // g(f) = r + f(mu - r) - 0.5 * f^2 * sigma^2
+                const g = r + f * (mu - r) - 0.5 * Math.pow(f, 2) * Math.pow(sigma, 2);
+                labels.push(f.toFixed(2));
+                growthData.push(g * 100);
+            }
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Laju Pertumbuhan (%)',
+                        data: growthData,
+                        borderColor: '#2563eb',
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+                            gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+                            return gradient;
+                        },
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (item) => `Pertumbuhan Tahunan: ${item.parsed.y.toFixed(2)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Leverage (Fraksi f)', font: { size: 11, weight: 'bold' } },
+                            ticks: { maxRotation: 0, font: { size: 10 } }
+                        },
+                        y: { 
+                            title: { display: true, text: 'Pertumbuhan (%)', font: { size: 11, weight: 'bold' } },
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Listeners untuk semua input
+        ['return', 'volatility', 'riskFree', 'fractionRange'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateUI);
+        });
+    </script>
+</body>
+</html>
+
+```
